@@ -44,11 +44,7 @@ Installation
 
 For Ubuntu:
 
-     sudo apt-get install autotools-dev
-     sudo apt-get install git
-     sudo apt-get install cmake
-     sudo apt-get install libtool
-     sudo apt-get install libpng-dev
+     sudo apt-get install -y autotools-dev git  cmake libtool libpng-dev liblzma-dev  libbz2-dev  libcurl4-openssl-dev  libncurses-dev  libgsl-dev
 
 For MacOS, if you have Homebrew (https://brew.sh/) installed: 
 
