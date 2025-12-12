@@ -58,7 +58,7 @@ For MacOS, if you have Homebrew (https://brew.sh/) installed:
 2) make sure you have gcc that supports -std=c++11, gcc version 4.7 or above. Type "gcc -v" and check the version. For both Ubuntu and MacOS, 
 
 3) As the makefile uses "git clone" to download subpackages, please make sure that the computer on which you are installing ROHan has access to the internet. Once done, simply type:
-   
+
      cd ROHan
      make
 
