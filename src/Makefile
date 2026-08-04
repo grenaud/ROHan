@@ -3,9 +3,12 @@ CXX      = g++ -std=c++11 #-g #-pg #-fpermissive #-g # -pg
 LIBGAB   = ../lib/libgab/
 
 CXXFLAGS = -Wall -lm -O3 -lz -I../lib/libgab/ -I../lib/libgab//gzstream/ -I../lib/samtools/ -I../lib/htslib/  -I../lib/libharu/include/   -c
-LDFLAGS  = -lgsl -lcurl -lgslcblas -llzma -lbz2 -lz  -lpthread 
-LDLIBS   = ../lib/samtools/bedidx.o ../lib/htslib/libhts.a ../lib/samtools/libst.a ../lib/samtools/libst.a 
+#htslib is built with --disable-libcurl (see the ../lib/htslib/libhts.a rule) so
+#no -lcurl here; a full static link cannot resolve libcurl.a's dependency chain
+LDFLAGS  = -lgsl -lgslcblas -llzma -lbz2 -lz  -lpthread
+LDLIBS   = ../lib/samtools/bedidx.o ../lib/htslib/libhts.a ../lib/samtools/libst.a ../lib/samtools/libst.a
 
+.PHONY: all static clean
 
 all:  ../lib/libgab/libgab.a ../lib/libharu/src/.libs/libhpdf.a ../lib/htslib/libhts.a ../lib/samtools/bedidx.o ../bin/rohan refPlusSegToGeno sitesPlusGeno ref2DNAprof #testComp testCompCont
 
@@ -24,10 +27,12 @@ refPlusSegToGeno:	refPlusSegToGeno.o ../lib/libgab/libgab.a   ../lib/libgab/gzst
 sitesPlusGeno:	sitesPlusGeno.o ../lib/libgab/libgab.a   ../lib/libgab/gzstream/libgzstream.a
 	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
-../bin/rohan:       rohan.o PdfWriter.o Hmm.o HmmState.o DataChunk.o DataToWrite.o GenoResults.o PositionResult.o miscfunc.o  GenomicWindows.o GenomicRange.o  ../lib/libgab/FastQObj.o ../lib/libgab/FastQParser.o ../lib/libharu/src/.libs/libhpdf.a ../lib/libgab/libgab.a  ../lib/libgab/gzstream/libgzstream.a 
+#the LDLIBS members are order-only prerequisites: they must be built first but
+#must stay out of $^, otherwise bedidx.o lands on the link line twice
+../bin/rohan:       rohan.o PdfWriter.o Hmm.o HmmState.o DataChunk.o DataToWrite.o GenoResults.o PositionResult.o miscfunc.o  GenomicWindows.o GenomicRange.o  ../lib/libgab/FastQObj.o ../lib/libgab/FastQParser.o ../lib/libharu/src/.libs/libhpdf.a ../lib/libgab/libgab.a  ../lib/libgab/gzstream/libgzstream.a  | ../lib/htslib/libhts.a ../lib/samtools/bedidx.o
 	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
-static:       rohan.o PdfWriter.o Hmm.o HmmState.o DataChunk.o DataToWrite.o GenoResults.o PositionResult.o miscfunc.o  GenomicWindows.o GenomicRange.o  ../lib/libgab/FastQObj.o ../lib/libgab/FastQParser.o ../lib/libharu/src/.libs/libhpdf.a ../lib/libgab/libgab.a  ../lib/libgab/gzstream/libgzstream.a 
+static:       rohan.o PdfWriter.o Hmm.o HmmState.o DataChunk.o DataToWrite.o GenoResults.o PositionResult.o miscfunc.o  GenomicWindows.o GenomicRange.o  ../lib/libgab/FastQObj.o ../lib/libgab/FastQParser.o ../lib/libharu/src/.libs/libhpdf.a ../lib/libgab/libgab.a  ../lib/libgab/gzstream/libgzstream.a  | ../lib/htslib/libhts.a ../lib/samtools/bedidx.o
 	${CXX} -static -o ../bin/rohan $^ $(LDLIBS) $(LDFLAGS)
 
 ref2DNAprof.o:	ref2DNAprof.cpp
@@ -36,9 +41,10 @@ ref2DNAprof.o:	ref2DNAprof.cpp
 ref2DNAprof:	ref2DNAprof.o ${LIBGAB}libgab.a  ${LIBGAB}gzstream/libgzstream.a
 	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
 
+#--disable-libcurl drops htslib's remote (http/s3) file support, which rohan does
+#not use, and keeps libcurl.a's dependency chain off the static link line
 ../lib/htslib/libhts.a:  ../lib/htslib/hts_internal.h
-	cd ../lib/htslib/ && git submodule update --init --recursive && make && cd ../..
-#	cd ../lib/htslib/ && git submodule update --init --recursive && autoreconf -i && ./configure --disable-libcurl  && make && cd ../..
+	cd ../lib/htslib/ && git submodule update --init --recursive && autoreconf -i && ./configure --disable-libcurl  && make && cd ../..
 
 ../lib/htslib/hts_internal.h:
 	rm -rfv ../lib/htslib/

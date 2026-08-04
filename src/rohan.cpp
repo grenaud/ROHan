@@ -139,8 +139,9 @@ unsigned int MAXLENGTHFRAGMENT  =    MINLENGTHFRAGMENT;     //  maximal length f
 long double stepHMM = 1000;
 char offsetQual=33;
 //                                         4 u       Ne
-int minSegSitesPer1M=  80; // 0.00008	 = 4*2e-8* 1000
-int maxSegSitesPer1M=5000; // 0.00500    = 4*2e-8*62500
+int minSegSitesPer1M =   80; // 0.00008	 = 4*2e-8* 1000
+int maxSegSitesPer1M = 5000; // 0.00500  = 4*2e-8*62500
+
 double  rho1M=20; 
 
 long double likeMatch           [MAXBASEQUAL+1];
@@ -4644,7 +4645,7 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
 	minSegSitesPerChunk = int( (double(minSegSitesPer1M)/double(1000000))*double(sizeChunk) );
 	maxSegSitesPerChunk = int( (double(maxSegSitesPer1M)/double(1000000))*double(sizeChunk) );
     }
-    minSegSitesPerChunk=0;
+    minSegSitesPerChunk=0;//to allow for ROHs
     //cerr<<"hmm "<<minSegSitesPerChunk<<" "<<maxSegSitesPerChunk<<endl;
     Hmm hmm (minSegSitesPerChunk,maxSegSitesPerChunk,sizeChunk,1000);
     
@@ -5292,6 +5293,9 @@ int main (int argc, char *argv[]) {
 	"\t\t"+""  +"" +""           +"\t\t\t"    + ""        +"\t\t\t"+"be careful when using this option as it can inflate the background estimate for theta"+"\n"+
 	"\t\t"+""  +"" +"--cov"      +"\t\t\t"    + "mincov,maxcov"+"\t\t"+"Ignore the prior probabilities on coverage, simply use these cutoffs  (default: prior probabilities are used)"+"\n"+
 
+	"\n\tPlease modify these parameters carefully and read what they mean:\n"+	      
+	"\t\t"+""  +"" +"--minss1M"    +"\t\t"    + "[rate]"  +"\t\t\t"+"Minimum number of segregating sites per 1M  (default: "+stringify(minSegSitesPer1M)+")"+"\n"+
+	"\t\t"+""  +"" +"--maxss1M"    +"\t\t"    + "[rate]"  +"\t\t\t"+"Maximum number of segregating sites per 1M  (default: "+stringify(maxSegSitesPer1M)+")"+"\n"+
 	//			      "\t\t"+""  +""+"--lambda"     +"\t\t"    + "[lambda]" +"\t\t"+"Skip coverage computation, specify lambda manually  (default: "+booleanAsString(lambdaCovSpecified)+")"+"\n"+	      
 	"\n\t\tHMM:\n"+
 
@@ -5419,6 +5423,20 @@ int main (int argc, char *argv[]) {
             i++;
             continue;
         }
+
+        if( string(argv[i]) == "--minss1M"  ){
+	  minSegSitesPer1M=destringify<int>(argv[i+1]);
+	  i++;
+	  continue;
+        }
+
+        if( string(argv[i]) == "--maxss1M"  ){
+	  maxSegSitesPer1M=destringify<int>(argv[i+1]);
+	  i++;
+	  continue;
+        }
+
+
 
         if( string(argv[i]) == "--auto"  ){
 	    autosomeFile=string(argv[i+1]);
