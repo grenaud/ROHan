@@ -19,8 +19,14 @@ bam2prof/bam2prof: bam2prof/bam2prof.cpp
 bin/rohan:
 	make -C  src/
 
+#end-to-end test on simulated data, needs no network access, see testData/Makefile
+test:	bin/rohan
+	make -C testData/ test
 
 clean:
 	make -C src/ clean
 	make -C bam2prof/ clean
+	make -C testData/ test-clean
+
+.PHONY: all test clean
 

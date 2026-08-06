@@ -4701,7 +4701,9 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
 
     //generate a random initial probability between pTlower and pTupper
     //probability of transition
-    long double pT_i = randomProb()*(pTupper-pTlower) + pTlower;
+    //randomProb(false): srand() was already called once in main(), letting
+    //libgab re-seed here would undo the seed set by --seed
+    long double pT_i = randomProb(false)*(pTupper-pTlower) + pTlower;
     long double pT_i_1;
     //long double pTlower =       numeric_limits<double>::epsilon();
     if(	noROH ){
@@ -4710,8 +4712,9 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
 	pT_i_1   = 0.0;	
     }
 
-    random_device rd;
-    default_random_engine dre (rd());
+    //the proposal distributions below draw from their own engine; seeding it
+    //from rand() rather than a random_device ties it to the seed set in main()
+    default_random_engine dre ( (default_random_engine::result_type)(rand()) );
     //int maxChains = 100000;
     //chain 0
 
@@ -4819,7 +4822,7 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
 	}
 
 	long double acceptance = MIN2( (long double)(1.0)  , expl(x_i_1-x_i) );
-	if( (long double)(randomProb()) < acceptance){
+	if( (long double)(randomProb(false)) < acceptance){
 	    h_i           =  h_i_1;
 	    s_i           =  s_i_1;
 	    pT_i          =  pT_i_1;
@@ -5237,6 +5240,16 @@ int main (int argc, char *argv[]) {
     int maxChains   =  50000;
     double fracChainsBurnin   =  0.1;
 
+    //seed for every source of randomness in rohan (the MCMC mostly); taken
+    //from the wall clock unless --seed is given, and reported in the summary
+    //so that a given run can be reproduced
+    unsigned int randomSeed;
+    {
+	timeval timeForSeed;
+	gettimeofday(&timeForSeed, NULL);
+	randomSeed = (unsigned int)( (timeForSeed.tv_sec * 1000) + (timeForSeed.tv_usec / 1000) );
+    }
+
     string bedFile;
 
     string autosomeFile;
@@ -5292,6 +5305,8 @@ int main (int argc, char *argv[]) {
 	"\t\t"+""  +"" +"--rohmu"    +"\t\t\t"    + "[rate]"  +"\t\t\t"+"Use this value as the expected theta in ROHs   (default: "+stringify(rohmu)+")"+"\n"+
 	"\t\t"+""  +"" +""           +"\t\t\t"    + ""        +"\t\t\t"+"be careful when using this option as it can inflate the background estimate for theta"+"\n"+
 	"\t\t"+""  +"" +"--cov"      +"\t\t\t"    + "mincov,maxcov"+"\t\t"+"Ignore the prior probabilities on coverage, simply use these cutoffs  (default: prior probabilities are used)"+"\n"+
+	"\t\t"+""  +"" +"--seed"     +"\t\t\t"    + "[seed]"       +"\t\t\t"+"Seed for the random number generator  (default: from the wall clock)"+"\n"+
+	"\t\t"+""  +"" +"     "      +"\t\t\t"    + "      "       +"\t\t\t"+"give the seed reported in [out prefix].summary.txt to reproduce a run"+"\n"+
 
 	"\n\tPlease modify these parameters carefully and read what they mean:\n"+	      
 	"\t\t"+""  +"" +"--minss1M"    +"\t\t"    + "[rate]"  +"\t\t\t"+"Minimum number of segregating sites per 1M  (default: "+stringify(minSegSitesPer1M)+")"+"\n"+
@@ -5422,6 +5437,12 @@ int main (int argc, char *argv[]) {
 	    rohmu=destringify<long double>(argv[i+1]);
             i++;
             continue;
+        }
+
+        if( string(argv[i]) == "--seed"  ){
+	  randomSeed=destringify<unsigned int>(argv[i+1]);
+	  i++;
+	  continue;
         }
 
         if( string(argv[i]) == "--minss1M"  ){
@@ -5705,6 +5726,12 @@ int main (int argc, char *argv[]) {
     ////////////////////////////////////
     //   END Parsing arguments        //
     ////////////////////////////////////
+
+    //the single seeding for the whole program: every call to randomProb() uses
+    //randomProb(false) so that libgab never re-seeds behind our back, and the
+    //MCMC's default_random_engine is seeded from rand()
+    srand( randomSeed );
+    cerr<<"Random seed: "<<randomSeed<<endl;
 
 
 
@@ -7016,6 +7043,7 @@ int main (int argc, char *argv[]) {
 	}
 	fileSummary <<endl;
 	fileSummary<<"Github version: "<< returnGitHubVersion(string(argv[0]),"..") <<" "<<endl;
+	fileSummary<<"Random seed: "<< randomSeed <<" (re-run with --seed "<<randomSeed<<" to reproduce)"<<endl;
 	
 	
 	fileSummary << "Genome-wide theta outside ROH:\t"<<hAvg     <<"\t"<<hMin     <<"\t"<<hMax     <<endl;

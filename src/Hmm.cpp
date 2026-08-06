@@ -126,7 +126,9 @@ vector<emission> Hmm::generateStates(unsigned int N,unsigned int total) const{
 	eToAdd.idx   = currrentState->getIdx();
 	
 	vecToReturn.push_back( eToAdd );
-	long double pt = randomProb();
+	//randomProb(false): rohan seeds rand() once in main(), a re-seed here
+	//would undo the seed set by --seed
+	long double pt = randomProb(false);
 	//cout<<"state#"<<currrentState->getIdx()<<"\t"<<d<<"\t"<<pt<<"\t"<<probTrans[currrentState->getIdx()]<<endl;	
 
 	//if(0)

@@ -70,6 +70,20 @@ For MacOS, if you get the problem: fatal error: 'lzma.h' file not found, this is
 4) (optional) Either put the executable in the overall path or add the path to your $PATH environment or add an alias to be able to run "rohan" from any directory.
 
 
+Testing your installation
+----------------------
+
+To check that your build works, type:
+
+```bash
+make test
+```
+
+This takes a few minutes and needs no internet access. It simulates a diploid chromosome of 3 Mbp at 8X coverage with a heterozygosity rate of 1e-3 and a single 1 Mbp run of homozygosity in the middle, runs ROHan on it and compares the results against what was simulated. The test passes if ROHan recovers the local and genome-wide heterozygosity rates and the position of the ROH. The files it produces live in testData/ and are removed by "make clean".
+
+The parameters of the simulation are at the bottom of testData/Makefile if you want to try harder cases (lower coverage, a smaller ROH, a lower heterozygosity rate). To re-generate the data after changing them, run "make -C testData/ test-clean" first.
+
+
 Quick start
 ----------------------
 
@@ -189,6 +203,11 @@ It is possible that you have genuine ROH but if you have a slight overestimate o
 ### What is the difference between --bed and --map?
 
 - By default, ROHan generates windows of "--size"bp along autosomes, you can override this and use the regions in a bed file. With either option, you can specify individual sites to consider using --map, this is recommended for ancient samples with short fragment size and with some damage.
+
+
+### I get slightly different results every time I run on the same data, why?
+
+- The HMM parameters are optimized using a Markov Chain Monte Carlo, which starts from a random point. The seed is taken from the wall clock and reported both on stderr and in [output prefix].summary.txt, re-running with "--seed [that seed]" reproduces the MCMC. Note that the local heterozygosity estimates still vary in the last few digits from one run to the next, so runs are not bit for bit identical even with the same seed.
 
 
 ### The percentage of classified segments does not sum up to one (100%), why?

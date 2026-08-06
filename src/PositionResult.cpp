@@ -178,7 +178,9 @@ string PositionResult::toString(const bam_hdr_t * references,const int & refID) 
 		
 	    }else{ //extreme corner case if homo ref but the most likely het. state does not have the ref. likely due to a statistical tie
 		//neither the hetBase.first nor the hetBase.secondselecting the a random 
-		if( randomProb() )
+		//randomProb(false): rohan seeds rand() once in main(), a re-seed
+		//here would undo the seed set by --seed
+		if( randomProb(false) )
 		    altB = stringify(hetBase.second);
 		else
 		    altB = stringify(hetBase.first);
