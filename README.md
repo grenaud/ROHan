@@ -108,7 +108,13 @@ Preparing the BAM file
 2) Do not apply any filters as mapping quality and base quality are all informative in the model. Duplicate removal is very recommended. Simply use the fail QC flag to remove reads/fragments that have failed basic quality control (e.g. for duplicates). Simply sort and index and provide ROHan the same reference used for mapping. 
 
 
-3) Is your sample ancient DNA? if not skip to 5). If the sample has aDNA damage, it should be quantified in incorporated in the calculation. There are 2 ways to do this:
+3) Is your sample ancient DNA? if not skip to 5). If the sample has aDNA damage, it should be quantified in incorporated in the calculation.
+
+**Important: if you are going to correct for damage, your reads must be single-end.** The deamination rates are indexed on the distance to the 5' and 3' ends of the original molecule. For a read that is one half of a pair, the end of the read is not the end of the molecule, so the rates cannot be placed correctly. ROHan therefore **skips every paired-end read** as soon as "--deam5p"/"--deam3p" are used. If all of your reads are paired-end, nothing at all will be retained and ROHan will tell you so and stop; if only some of them are, the paired-end portion is silently dropped and ROHan will print a warning.
+
+The usual way to deal with this, and the standard practice for ancient DNA, is to merge (collapse) overlapping read pairs into single reads before mapping, using e.g. [leeHom](https://github.com/grenaud/leeHom), "AdapterRemoval --collapse", "fastp -m" or SeqPrep, and then align the collapsed reads as single-end. Ancient and museum samples usually have short fragments, so the large majority of pairs will overlap and collapse. If you do not need the damage correction, you can run on paired-end data without "--deam5p"/"--deam3p".
+
+There are 2 ways to quantify the damage:
 
 i) If the sample is not too divergent from the reference used you can simply use:
 
@@ -185,6 +191,10 @@ FAQ
 ----------------------
 
 
+
+### I get "No data was found for the entire BAM file for the regions you defined", why?
+
+- ROHan estimates the average coverage on a subsample of genomic windows and found no read at all in any of them. Either the BAM genuinely has no data there, which you can check with "samtools view [your bam] [one of the regions listed]", or every read was filtered out. When the BAM does contain reads in those regions, by far the most common cause is using "--deam5p"/"--deam3p" on paired-end data: paired-end reads are all skipped when deamination profiles are given, see point 3) of "Preparing the BAM file" above. ROHan detects this case and reports it explicitly.
 
 ### Why do I have such huge confidence intervals for potential ROH regions?
 

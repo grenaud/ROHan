@@ -6025,8 +6025,27 @@ int main (int argc, char *argv[]) {
 
 	    //    cout<<"Final" <<" "<<totalBasesSum<<"\t"<<totalSitesSum<<"\t"<<double(totalBasesSum)/double(totalSitesSum)<<endl;
 	
+	    //The read groups are recorded before reads are filtered out, so rg2info tells us
+	    //whether the data is paired-end even when every single read has been discarded.
+	    bool foundPEreadgroup=false;
+	    bool foundSEreadgroup=false;
+	    for(map<string,rgInfo>::iterator it=rg2info.begin(); it!=rg2info.end(); ++it){
+		if(it->second.isPe){ foundPEreadgroup=true; }else{ foundSEreadgroup=true; }
+	    }
+
 	    rateForPoissonCov    = ((long double)totalBasesSum)/((long double)totalSitesSum);
 	    if(totalSitesSum ==0 ){
+		//By far the most common reason for ending up with no data at all is asking for
+		//deamination rates on paired-end data: those reads are all skipped (see below)
+		//and nothing is left. Say so instead of blaming the BAM file.
+		if(specifiedDeam && foundPEreadgroup && !foundSEreadgroup){
+		    cerr<<"No data was retained: every read in this BAM file is paired-end and deamination profiles were given via --deam5p/--deam3p."<<endl;
+		    cerr<<"The deamination rates are indexed on the distance to the ends of the original molecule, which cannot be recovered from a read"<<endl;
+		    cerr<<"that is only one half of a pair, ROHan therefore skips paired-end reads when deamination profiles are used."<<endl;
+		    cerr<<"Please merge/collapse your overlapping read pairs (e.g. leeHom, AdapterRemoval --collapse, fastp -m or SeqPrep) and align the"<<endl;
+		    cerr<<"collapsed reads as single-end. If you do not need the damage correction, run without --deam5p/--deam3p instead."<<endl;
+		    return 1;
+		}
 		//cerr<<"No data was found for the entire BAM file for the region "<<endl;
 		cerr<<"No data was found for the entire BAM file for the regions you defined, please verify the BAM file. "<<endl;
 		cerr<<"The following regions had been selected. "<<endl;
@@ -6036,6 +6055,15 @@ int main (int argc, char *argv[]) {
 		cerr<<"If you are running tests, you can use the hidden option --first it will select the first genomic windows. "<<endl;
 		return 1;
 	    }
+
+	    //Mixed data: the single-end reads got us here but the paired-end ones were all
+	    //dropped, warn as this silently removes part of the data.
+	    if(specifiedDeam && foundPEreadgroup){
+		cerr<<"WARNING: deamination profiles were given via --deam5p/--deam3p and some read groups are paired-end."<<endl;
+		cerr<<"WARNING: paired-end reads are skipped as their deamination rates cannot be placed, only the single-end reads are used."<<endl;
+		cerr<<"WARNING: merge/collapse your read pairs and align them as single-end to use all of the data."<<endl;
+	    }
+
 	    cerr<<"Final computation:" <<" bases="<<totalBasesSum<<"\tsites="<<totalSitesSum<<"\tlambda coverage="<<rateForPoissonCov<<endl;
 	    delete(rangesSelected);
 	    //pthread_exit(NULL);	
