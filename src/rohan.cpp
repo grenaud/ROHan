@@ -4994,6 +4994,13 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
     for(unsigned int c=0;c<heteroEstResults.size();c++){
 	string strToWrite=heteroEstResults[c].rangeGen.asBed()+"\t";//+"\t"+stringify(dataToWrite->hetEstResults.sites)+"\t";
 
+	//The bp tally below has to use the actual span of this window rather than
+	//sizeChunk: the last window of every chr/scaffold is shorter than sizeChunk and,
+	//when --bed is used, the windows can be of any length while sizeChunk stays at
+	//its default.
+	const uint64_t lengthWindow = uint64_t( heteroEstResults[c].rangeGen.getEndCoord() -
+						heteroEstResults[c].rangeGen.getStartCoord() + 1 );
+
 	if(heteroEstResults[c].chrBreak){
 	    if(inROH && c!=0){//was already in ROH
 	      rohSegmentsContiguous.push_back(rohSegmentsContiguousSum);
@@ -5028,11 +5035,11 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
 	}
 
 	if(     exp(postprob.m[0][c]) > 0.9){//confident in ROH
-	    rohSegments        += sizeChunk;
+	    rohSegments        += lengthWindow;
 
 
 	    if(inROH){//was already in ROH
-		rohSegmentsContiguousSum += sizeChunk;
+		rohSegmentsContiguousSum += lengthWindow;
 		rohSegmentsContiguousSitesSum += heteroEstResults[c].sites;
 		if(rohSegmentsContiguousChr      != heteroEstResults[c].rangeGen.getChrName()){
 		    cerr<<"The current chr "<<heteroEstResults[c].rangeGen.getChrName()<<" is different than the one in the same ROH:"<< rohSegmentsContiguousChr<<" please email the programmer with your .hEst file."<<endl;
@@ -5040,7 +5047,7 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
 		//rohSegmentsContiguousStart    = heteroEstResults[c].rangeGen.getStartCoord(); start stays as is
 		rohSegmentsContiguousEnd      = heteroEstResults[c].rangeGen.getEndCoord();
 	    }else{//new ROH
-		rohSegmentsContiguousSum      = sizeChunk;
+		rohSegmentsContiguousSum      = lengthWindow;
 		rohSegmentsContiguousSitesSum = heteroEstResults[c].sites;
 		rohSegmentsContiguousChr      = heteroEstResults[c].rangeGen.getChrName();
 		rohSegmentsContiguousStart    = heteroEstResults[c].rangeGen.getStartCoord();
@@ -5050,7 +5057,7 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
 
 	}else{
 	    if( exp(postprob.m[1][c]) > 0.9){//confident not in ROH
-		nonrohSegments += sizeChunk;
+		nonrohSegments += lengthWindow;
 		
 		if(inROH){//was already in ROH
 
@@ -5072,7 +5079,7 @@ hmmRes runHMM(const string & outFilePrefix, const    vector<emissionUndef> & het
 		inROH=false;
 
 	    }else{
-		unsureSegments += sizeChunk;
+		unsureSegments += lengthWindow;
 	    }
 	}
 	//bgzipWriterHMMpost.Write(strToWrite.c_str(), strToWrite.size());
@@ -5291,6 +5298,8 @@ int main (int argc, char *argv[]) {
 	"\t\t"+""  +"" +"--size"     +"\t\t\t"    + "[bp]"      +"\t\t\t"+"Size of windows in bp  (default: "+thousandSeparator(sizeChunk)+")"+"\n"+	      
 	"\t\t"+""  +"" +"--bed"      +"\t\t\t"    + "[bed file]"+"\t\t"+"Do not automatically generate genomic windows, use the regions in this bed file  (default: none)"+"\n"+
 	"\t\t"+""  +"" +"     "      +"\t\t\t"    + "          "+"\t\t"+"by default, the windows are automatically generated using the --size parameter"+"\n"+
+	"\t\t"+""  +"" +"     "      +"\t\t\t"    + "          "+"\t\t"+"can be combined with --size, if --size is not given, the median length of the"+"\n"+
+	"\t\t"+""  +"" +"     "      +"\t\t\t"    + "          "+"\t\t"+"windows in the bed file is used as the window size"+"\n"+
 
 	"\t\t"+""  +"" +"--map"      +"\t\t\t"    + "[bed file]"+"\t\t"+"Use a mappability filter to filter on a per site basis  (default: none)"+"\n"+
    ///"\t\t"+""  +"" +"--first"      +"\t\t\t"    + ""+"\t\t"+"Do not shuffle the windows for coverage computations (default: "+booleanAsString(!shuffleWindCoverage)+")"+"\n"+	      
@@ -5345,7 +5354,6 @@ int main (int argc, char *argv[]) {
         return 1;
     }
 
-    bool specifiedBED =false;
     bool specifiedSIZE=false;
 
     for(int i=1;i<(argc);i++){ 
@@ -5467,7 +5475,6 @@ int main (int argc, char *argv[]) {
 
         if( string(argv[i]) == "--bed"  ){
 	    bedFile=string(argv[i+1]);
-	    specifiedBED = true;
             i++;
             continue;
         }
@@ -5595,10 +5602,9 @@ int main (int argc, char *argv[]) {
 	return 1;
     }
 
-    if(specifiedBED && specifiedSIZE){
-	cerr<<"Error: cannot simultaneously speficied --bed and --size"<<endl;
-	return 1;
-    }
+    //--bed and --size can be combined: --bed gives the windows to analyze whereas --size
+    //tells the HMM how large a window is. If --size is omitted, it is inferred from the
+    //median length of the windows in the BED file (see below).
 
     pthread_t             threadCov[numberOfThreads];//coverage threads
     pthread_t             threadHet[numberOfThreads];//het      threads
@@ -5824,18 +5830,37 @@ int main (int argc, char *argv[]) {
     rc=0;
 
 
-    bpToExtract       = sizeChunk;
-    
-
-
-
-    rw = GenomicWindows  (fastaIndex,false);
+    //If the user gave an explicit list of chr/scaffolds via --auto, that list is
+    //authoritative and the automatic sex chromosome exclusion is turned off. Otherwise
+    //sequences named like a sex chromosome are skipped.
+    rw = GenomicWindows  (fastaIndex, !autosomeFile.empty() );
 
 
 
     if( !bedFile.empty() ){
 	v = readBEDfile(bedFile);
-    }else{
+
+	//sizeChunk is the scale the HMM works at: it converts rates of heterozygosity into
+	//expected counts per window and normalizes the weight given to each window. When the
+	//windows come from a BED file, it therefore has to reflect the size of those windows
+	//and not the default of 1Mbp, otherwise every window is down-weighted by the ratio of
+	//the two and the HMM ends up driven by its prior rather than by the data. If the user
+	//did not say what size to use, take the median length of the windows in the BED.
+	if( !specifiedSIZE && !v.empty() ){
+	    vector<unsigned int> lengthWindows;
+	    for(unsigned int i=0;i<v.size();i++){
+		lengthWindows.push_back( v[i].getEndCoord() - v[i].getStartCoord() + 1 );
+	    }
+	    sort( lengthWindows.begin(), lengthWindows.end() );
+	    sizeChunk = lengthWindows[ lengthWindows.size()/2 ];
+	    if(sizeChunk == 0){ sizeChunk = 1; }
+	    cerr<<"Windows were read from "<<bedFile<<", using the median length of these windows ("<<thousandSeparator(sizeChunk)<<"bp) as window size, use --size to override"<<endl;
+	}
+    }
+
+    bpToExtract       = sizeChunk;
+
+    if( bedFile.empty() ){
 	v = rw.getGenomicWindows(bpToExtract,0);
     }
     allGenomic = rw.getGenomicWindows(bpToExtract,0);

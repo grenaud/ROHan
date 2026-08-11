@@ -82,9 +82,8 @@ vector<GenomicRange> GenomicWindows::getChr(string chrName){
     vector<GenomicRange> toReturn;
 
     if(!allowSexChr){
-	if( (chrName.find("X") != string::npos) ||
-	    (chrName.find("Y") != string::npos) ){
-	    return toReturn;//empty vector	    
+	if( isSexChrName(chrName) ){
+	    return toReturn;//empty vector
 	}
     }
 
@@ -128,9 +127,8 @@ vector<GenomicRange> GenomicWindows::getGenomicWindowsChr(string chrName,int win
     vector<GenomicRange> toReturn;
 
     if(!allowSexChr){
-	if( (chrName.find("X") != string::npos) ||
-	    (chrName.find("Y") != string::npos) ){
-	    return toReturn;//empty vector	    
+	if( isSexChrName(chrName) ){
+	    return toReturn;//empty vector
 	}
     }
 
