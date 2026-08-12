@@ -2,7 +2,10 @@
 CXX      = g++ -std=c++11 #-g #-pg #-fpermissive #-g # -pg
 LIBGAB   = ../lib/libgab/
 
-CXXFLAGS = -Wall -lm -O3 -lz -I../lib/libgab/ -I../lib/libgab//gzstream/ -I../lib/samtools/ -I../lib/htslib/  -I../lib/libharu/include/   -c
+#-MMD -MP make the compiler write a .d file next to every .o listing the headers that
+#object depends on. Those .d files are pulled in at the bottom of this makefile so that
+#editing a header rebuilds whatever includes it, instead of silently leaving a stale .o
+CXXFLAGS = -Wall -lm -O3 -lz -I../lib/libgab/ -I../lib/libgab//gzstream/ -I../lib/samtools/ -I../lib/htslib/  -I../lib/libharu/include/   -MMD -MP -c
 #htslib is built with --disable-libcurl (see the ../lib/htslib/libhts.a rule) so
 #no -lcurl here; a full static link cannot resolve libcurl.a's dependency chain
 LDFLAGS  = -lgsl -lgslcblas -llzma -lbz2 -lz  -lpthread
@@ -12,8 +15,10 @@ LDLIBS   = ../lib/samtools/bedidx.o ../lib/htslib/libhts.a ../lib/samtools/libst
 
 all:  ../lib/libgab/libgab.a ../lib/libharu/src/.libs/libhpdf.a ../lib/htslib/libhts.a ../lib/samtools/bedidx.o ../bin/rohan refPlusSegToGeno sitesPlusGeno ref2DNAprof #testComp testCompCont
 
-%.o: %.cpp #../lib/libgab/libgab.a  
-	${CXX} ${CXXFLAGS} $^ -o $@
+#$< and not $^: once the .d files are included, $^ would also hold every header this
+#object depends on and they would end up on the compiler command line
+%.o: %.cpp #../lib/libgab/libgab.a
+	${CXX} ${CXXFLAGS} $< -o $@
 
 #testComp:	testComp.o 
 #	${CXX} -o $@ $^ $(LDLIBS) $(LDFLAGS)
@@ -76,6 +81,9 @@ ref2DNAprof:	ref2DNAprof.o ${LIBGAB}libgab.a  ${LIBGAB}gzstream/libgzstream.a
 	cd ../lib/libharu/ && ./buildconf.sh --force && ./configure  --without-zlib --without-png && make
 
 clean :
-	rm -f *.o testComp  testCompCont  refPlusSegToGeno sitesPlusGeno  testPrior  ../bin/rohan  ref2DNAprof 
+	rm -f *.o *.d testComp  testCompCont  refPlusSegToGeno sitesPlusGeno  testPrior  ../bin/rohan  ref2DNAprof
+
+#header dependencies recorded by -MMD, absent on a clean tree which is why this is "-include"
+-include $(wildcard *.d)
 
 

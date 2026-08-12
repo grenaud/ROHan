@@ -16,6 +16,9 @@ bam2prof/bam2prof: bam2prof/bam2prof.cpp
 	rm -rfv bam2prof/grenaud*/
 	rm -f bam2prof.zip
 
+#bin/rohan is declared phony on purpose: src/Makefile is the one that knows what rohan is
+#built from, so always recurse into it and let it decide what needs recompiling. Testing
+#whether bin/rohan merely exists would report "Done" without rebuilding after a source edit.
 bin/rohan:
 	make -C  src/
 
@@ -28,5 +31,5 @@ clean:
 	make -C bam2prof/ clean
 	make -C testData/ test-clean
 
-.PHONY: all test clean
+.PHONY: all test clean bin/rohan
 
