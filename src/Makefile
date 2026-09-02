@@ -55,8 +55,13 @@ ref2DNAprof:	ref2DNAprof.o ${LIBGAB}libgab.a  ${LIBGAB}gzstream/libgzstream.a
 	rm -rfv ../lib/htslib/
 	git clone --recursive https://github.com/samtools/htslib.git ../lib/htslib/
 
+#ask for libst.a and bedidx.o rather than samtools' default target: those are the only
+#pieces rohan links against (libst.a is sam_opts.o sam_utils.o bedidx.o bam.o). Building
+#all of samtools drags in bam_tview_curses.c and -lcurses, and when samtools is built
+#without running its own configure it hardcodes HAVE_CURSES into config.h, so the build
+#fails on any machine without the ncurses headers even though rohan never uses them.
 ../lib/samtools/bedidx.o:  ../lib/samtools/samtools.h
-	cd ../lib/samtools/  &&   make && cd ../..
+	cd ../lib/samtools/  &&   make libst.a bedidx.o && cd ../..
 #	cd ../lib/samtools/  && autoreconf -i && ./configure --disable-libcurl &&  make && cd ../..
 
 ../lib/samtools/samtools.h:

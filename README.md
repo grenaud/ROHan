@@ -44,7 +44,7 @@ Installation
 
 For Ubuntu:
 
-     sudo apt-get install -y autotools-dev git  cmake libtool libpng-dev liblzma-dev  libbz2-dev  libcurl4-openssl-dev  libncurses-dev  libgsl-dev
+     sudo apt-get install -y autotools-dev git  cmake libtool libpng-dev liblzma-dev  libbz2-dev  libcurl4-openssl-dev  libgsl-dev
 
 For MacOS, if you have Homebrew (https://brew.sh/) installed: 
 
@@ -195,6 +195,22 @@ FAQ
 ### I get "No data was found for the entire BAM file for the regions you defined", why?
 
 - ROHan estimates the average coverage on a subsample of genomic windows and found no read at all in any of them. Either the BAM genuinely has no data there, which you can check with "samtools view [your bam] [one of the regions listed]", or every read was filtered out. When the BAM does contain reads in those regions, by far the most common cause is using "--deam5p"/"--deam3p" on paired-end data: paired-end reads are all skipped when deamination profiles are given, see point 3) of "Preparing the BAM file" above. ROHan detects this case and reports it explicitly.
+
+### The build fails with "fatal error: curses.h: No such file or directory", why?
+
+- This came from the bundled samtools, which builds its interactive alignment viewer ("samtools tview") unless it is told not to. ROHan does not use the viewer, or any other part of the samtools binary; it only links four object files. As of v1.0.5 the makefile asks samtools for exactly those, so ncurses is no longer needed at all and this error should not occur any more. If you are on an older version, either install the ncurses development headers ("sudo apt-get install libncurses-dev") or pull a current ROHan.
+
+### ROHan builds but will not start: "libgsl.so.25: cannot open shared object file", why?
+
+- ROHan uses the GNU Scientific Library, so libgsl has to be present at run time and not only at build time. On a cluster this usually means the library exists on the login node where you compiled but not on the compute node where the job runs; loading the same module in your job script ("module load gsl/...") fixes it. If you would rather not depend on the environment at all, "make -C src/ static" links everything into the binary, and the "bin/rohan" that ships in the repository is already a static binary.
+
+### The coverage step prints "Results bp=0 sites=0 lambda=...", is something wrong?
+
+- No. Prior to v1.0.5 that line was printed with zeroes whenever ROHan reused a cached "[out prefix].rginfo.gz" from an earlier run rather than scanning the BAM again: the lambda is real, but the bp and sites counters belong to the run that wrote the cache and were never filled in. Current versions say "reused from ..." instead. Note that the cache is reused whenever the file exists, so if you have changed the BAM, the reference or the read filters since, pass "-f" to force the coverage and read groups to be recomputed.
+
+### The heterozygosity step sits at 0% and the .hEst.gz file does not grow, has it hung?
+
+- Almost certainly not, it is just slow, and neither of the two things you are watching can show you otherwise. ROHan estimates heterozygosity in every window in turn, and on a 3 Gbp genome the default 1 Mbp windows come to a few thousand of them. Measured on such an assembly (2.9 Gbp, 4,235 windows) with four threads on four cores, the progress bar took 42 minutes to move from 0% to 1%; on a single thread it is a few hours before the first percent appears. The file is worse: ".hEst.gz" is written through bgzip, which does not put anything on disk until 64 kbytes of text have accumulated, and a window is only about 70 bytes, so the file stays at exactly zero bytes for the first ~936 windows however well the run is going. From v1.0.5 onwards ROHan prints the number of windows and counts them off individually, which is the number to watch. This step is the bulk of the run time and it parallelizes well, so use "-t" with as many cores as you have, and note that memory scales with it (1.3 GB resident at "-t 4" on the genome above), so ask your scheduler for enough. "--auto" with a list of your assembled chromosomes also avoids spending time on unplaced scaffolds.
 
 ### Why do I have such huge confidence intervals for potential ROH regions?
 

@@ -5261,6 +5261,10 @@ int main (int argc, char *argv[]) {
 
     string autosomeFile;
     bool ignoreExistingRGINFO=false;
+    //totalBasesSum/totalSitesSum are only filled in by the coverage pre-scan; when the
+    //cached .rginfo.gz is reused they stay at zero and must not be reported as a result.
+    //Declared here rather than next to the pre-scan because "goto beginhmm" jumps over it
+    bool coveragePrescanWasRun=false;
     bool shuffleWindCoverage=true;
 
 
@@ -5288,7 +5292,7 @@ int main (int argc, char *argv[]) {
 	//"\t\t"+""  +""+"--vcf"     + "\t\t\t" +    ""          +"\t\t\t"+"Use VCF as output format (default: "+booleanAsString(useVCFoutput)+")"+"\n"+
 	//"\t\t"+""+"\t"+"--ingeno"  + "\t\t"   +    "[infile]" +"\t\t"+"Read likelihoods in BGZIP and start comp. from there (default: none)"+"\n"+
 	"\t\t"+"-v"+","+"--verbose"  +"\t\t"      + ""             +"\t\t\t"+"Print extensive info  (default: "+booleanAsString(verbose)+")"+"\n"+  
-	//"\t\t"+"-f"+","+""           +"\t\t"      + ""             +"\t\t\t"+"Overwrite any .rginfo.gz (default: "+booleanAsString(ignoreExistingRGINFO)+")"+"\n"+  
+	"\t\t"+"-f"+","+""             +"\t\t\t"    + ""             +"\t\t\t"+"Recompute the coverage and read groups even if [out prefix].rginfo.gz exists (default: "+booleanAsString(ignoreExistingRGINFO)+")"+"\n"+  
 	//"\t\t"+""+""+"--nogl"       +"\t\t\t"      + ""             +"\t\t\t"+"Do not output genotype likelihoods  (default: "+booleanAsString(!outputgenol)+")"+"\n"+  
 	"\t\t"+""+""+"--gl"       +"\t\t\t"      + ""             +"\t\t\t"+"Produce genotype likelihoods  (default: "+booleanAsString(outputgenol)+")"+"\n"+  
 			      
@@ -5942,6 +5946,7 @@ int main (int argc, char *argv[]) {
 
 
     if( ignoreExistingRGINFO || (!isFile(outFilePrefix+".rginfo.gz")) ){
+	coveragePrescanWasRun = true;
 
 	// if(!genoFileAsInputFlag){
 	    int bpToComputeCoverage = 10000000;
@@ -6204,7 +6209,12 @@ int main (int argc, char *argv[]) {
     //return 1;
     
 
-    cerr<<"Results\tbp="<<totalBasesSum<<"\tsites="<<totalSitesSum<<"\tlambda="<<rateForPoissonCov<<endl;
+    if(coveragePrescanWasRun){
+	cerr<<"Results\tbp="<<totalBasesSum<<"\tsites="<<totalSitesSum<<"\tlambda="<<rateForPoissonCov<<endl;
+    }else{
+	//no bp/sites to report, they belong to the run that produced the cached file
+	cerr<<"Results\tlambda="<<rateForPoissonCov<<"\t(reused from "<<(outFilePrefix+".rginfo.gz")<<", use -f to recompute)"<<endl;
+    }
     // cerr<<MAXLENGTHFRAGMENT<<endl;
     //return 1;
 
@@ -6463,8 +6473,19 @@ int main (int argc, char *argv[]) {
 	cerr<<"Writing genotype data to:        "<<outFilePrefix+".vcf.gz" << endl;
    }
    cerr<<"Writing local het. estimates to: "<<outFilePrefix+".hEst.gz"<< endl;
-   if(!verbose)
+
+   //the bar below only moves in whole percent, which on a large genome is dozens of windows
+   //per step, so also say how many windows there are and count them off one by one, otherwise
+   //a run that is progressing normally is indistinguishable from one that has hung at 0%
+   cerr<<"Computing local het. rates on "<<thousandSeparator(lastRank+1)<<" window(s) of up to "<<thousandSeparator(sizeChunk)<<"bp"<<endl;
+   if(numberOfThreads == 1 && lastRank >= 100){
+       cerr<<"NOTE: running on a single thread, this will take a while on a genome this size, consider using -t"<<endl;
+   }
+
+   if(!verbose){
+       cerr<<"0/"<<thousandSeparator(lastRank+1)<<" windows ";
        printprogressBarCerr( 0 );
+   }
 
    //outFilePrefix+".hEst.gz", IBamIODevice::WriteOnly);
    
@@ -6598,8 +6619,10 @@ int main (int argc, char *argv[]) {
 		lastWrittenChunk=dataToWrite->rank;
 
 
-		if(!verbose)
+		if(!verbose){
+		    cerr<<thousandSeparator(lastWrittenChunk+1)<<"/"<<thousandSeparator(lastRank+1)<<" windows ";
 		    printprogressBarCerr( float(lastWrittenChunk)/float(lastRank) );
+		}
 		
 		if(dataToWrite->rank == lastRank)
 		    wroteEverything=true;	
