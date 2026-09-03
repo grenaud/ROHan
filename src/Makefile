@@ -55,14 +55,15 @@ ref2DNAprof:	ref2DNAprof.o ${LIBGAB}libgab.a  ${LIBGAB}gzstream/libgzstream.a
 	rm -rfv ../lib/htslib/
 	git clone --recursive https://github.com/samtools/htslib.git ../lib/htslib/
 
-#ask for libst.a and bedidx.o rather than samtools' default target: those are the only
-#pieces rohan links against (libst.a is sam_opts.o sam_utils.o bedidx.o bam.o). Building
-#all of samtools drags in bam_tview_curses.c and -lcurses, and when samtools is built
-#without running its own configure it hardcodes HAVE_CURSES into config.h, so the build
-#fails on any machine without the ncurses headers even though rohan never uses them.
-../lib/samtools/bedidx.o:  ../lib/samtools/samtools.h
-	cd ../lib/samtools/  &&   make libst.a bedidx.o && cd ../..
-#	cd ../lib/samtools/  && autoreconf -i && ./configure --disable-libcurl &&  make && cd ../..
+#--without-curses is the point of running configure here. rohan links four objects out of
+#samtools and testData/Makefile drives the samtools binary to build the simulated BAM, but
+#nothing uses the interactive alignment viewer, which is the only part that wants ncurses.
+#Built without configure, samtools hardcodes HAVE_CURSES into a generated config.h and the
+#build then fails on any machine without the ncurses headers. This recipe also produces
+#../lib/samtools/samtools, which "make test" needs. libhts.a is a prerequisite because
+#samtools configures against it, so it must exist first even under make -j
+../lib/samtools/bedidx.o:  ../lib/samtools/samtools.h ../lib/htslib/libhts.a
+	cd ../lib/samtools/  && autoreconf -i && ./configure --without-curses --with-htslib=../htslib && make samtools libst.a bedidx.o && cd ../..
 
 ../lib/samtools/samtools.h:
 	rm -rf ../lib/samtools/
