@@ -204,6 +204,14 @@ FAQ
 
 - ROHan uses the GNU Scientific Library, so libgsl has to be present at run time and not only at build time. On a cluster this usually means the library exists on the login node where you compiled but not on the compute node where the job runs; loading the same module in your job script ("module load gsl/...") fixes it. If you would rather not depend on the environment at all, "make -C src/ static" links everything into the binary, and the "bin/rohan" that ships in the repository is already a static binary.
 
+### estimateDamage.pl stops with "system cmd ... bam2prof ... failed: 32512", why?
+
+- That number is the shell's exit code 127 shifted left by eight bits, and 127 means the program could never be started: either "bam2prof" is not at the path printed in the failing command, or it is there but the dynamic loader cannot find a library it needs. Check with "ls -l [ROHan directory]/bam2prof/bam2prof". If it is missing, run "make" in the top level ROHan directory, which downloads and builds it; note that step fetches from github.com, so it will not work on a machine with no outbound network, and running only "make -C src/" never builds it. If the file is there, run it directly with no arguments and a loader error will name the library that is missing. Older versions of the script printed "detecting bam2prof...success" whether or not the binary was usable, and sent bam2prof's error output to /dev/null, which is why this used to surface much later with no explanation.
+
+### bam2prof stops with "ReconsReferenceHTSLIB: Cannot get MD tag from read0", why?
+
+- bam2prof reconstructs the reference sequence for each read from its MD tag, so the BAM has to carry one. Not every aligner writes it. Add it with "samtools calmd -b [your bam] [reference].fa > [new bam]", index the result and use that.
+
 ### The coverage step prints "Results bp=0 sites=0 lambda=...", is something wrong?
 
 - No. Prior to v1.0.5 that line was printed with zeroes whenever ROHan reused a cached "[out prefix].rginfo.gz" from an earlier run rather than scanning the BAM again: the lambda is real, but the bp and sites counters belong to the run that wrote the cache and were never filled in. Current versions say "reused from ..." instead. Note that the cache is reused whenever the file exists, so if you have changed the BAM, the reference or the read filters since, pass "-f" to force the coverage and read groups to be recomputed.

@@ -23,6 +23,26 @@ sub fileExists{
   }
 }
 
+#fileExists() only reports, it does not act. Use this one for the binaries this script
+#drives: calling fileExists() and ignoring what it returns prints "success" for a program
+#that is not there, and the failure then surfaces much later as an unexplained exit code
+sub checkExecutable{
+  my ($exeFile,$name,$howtobuild) = @_;
+
+  if( ! -f $exeFile ){
+    print STDERR "\nERROR: cannot find ".$name.", it should be at:\n  ".$exeFile."\n".
+                 "Run \"".$howtobuild."\" in the ROHan directory to build it.\n";
+    exit(1);
+  }
+
+  if( ! -x $exeFile ){
+    print STDERR "\nERROR: ".$name." is present but not executable:\n  ".$exeFile."\n";
+    exit(1);
+  }
+
+  return 1;
+}
+
 
 my @arraycwd=split("/",abs_path($0));
 pop(@arraycwd);
@@ -34,7 +54,7 @@ my $subsam=1000000;
 my $length=10;
 
 
-my $rohan    = $pathdir."/rohan";
+my $rohan    = $pathdir."/../bin/rohan";
 my $bam2prof = $pathdir."/../bam2prof/bam2prof";
 
 my $all=1;
@@ -46,12 +66,12 @@ my $threads=1;
 
 
 print STDERR "detecting ROHan...";
-fileExists($rohan);
+checkExecutable($rohan,"the rohan binary","make");
 print STDERR  "..success\n";
 $rohan = abs_path($rohan);
 
 print STDERR  "detecting bam2prof...";
-fileExists($bam2prof);
+checkExecutable($bam2prof,"bam2prof","make");
 print STDERR  "..success\n";
 $bam2prof = abs_path($bam2prof);
 
@@ -149,7 +169,23 @@ sub runcmd{
     #my @argstorun = ( "bash", "-i","-c", $cmdtorun );
     my @argstorun = ( $cmdtorun );
     #print STDERR "calling\n";
-    system(@argstorun) == 0 or die "system cmd $cmdtorun failed: $?";
+    if( system(@argstorun) != 0 ){
+      my $why;
+      if( $? == -1 ){
+	$why = "it could not be run at all: ".$!;
+      }elsif( $? & 127 ){
+	$why = "it was killed by signal ".($? & 127);
+      }else{
+	my $exitcode = $? >> 8;
+	$why = "it exited with code ".$exitcode;
+	#127 is what the shell returns both when the program is not there and when the
+	#dynamic loader cannot find a library it needs, which are the two usual causes
+	if($exitcode == 127){
+	  $why .= ", which means the program was not found, or a shared library it needs was not found";
+	}
+      }
+      die "\nERROR: the following command failed, ".$why.":\n".$cmdtorun."\n";
+    }
     #}else{
     print STDERR "done\n";
     #}
@@ -309,7 +345,9 @@ my $deam3p1 = $outputprefix."_1.3p.prof";
 $bam2profcmd1 = $bam2profcmd1." -5p ".$deam5p1." ";
 $bam2profcmd1 = $bam2profcmd1." -3p ".$deam3p1." ";
 
-$bam2profcmd1 = $bam2profcmd1."  ".$outputprefix."_sub".$subsam.".bam 2> /dev/null";
+#no "2> /dev/null" here: bam2prof reports why it gave up on stderr (a missing MD tag,
+#for instance) and hiding that leaves the user with a bare exit code and nothing else
+$bam2profcmd1 = $bam2profcmd1."  ".$outputprefix."_sub".$subsam.".bam";
 runcmd($bam2profcmd1);
 
 
