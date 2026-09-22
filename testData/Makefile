@@ -5,7 +5,10 @@
 all: HG02891.summary.txt Loschbour.hg19_1000g.summary.txt
 
 HG02891.21.bam:
-	samtools view -b ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG02891/alignment/HG02891.mapped.ILLUMINA.bwa.GWD.low_coverage.20121211.bam 21 > HG02891.21.bam 
+#https rather than ftp for the same file: the FTP form needs outbound port 21 and passive
+#data connections, which institutional firewalls routinely block, and htslib then reports
+#it as "Libcurl reported error 78 (Remote file not found)" as though the file were gone
+	samtools view -b https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG02891/alignment/HG02891.mapped.ILLUMINA.bwa.GWD.low_coverage.20121211.bam 21 > HG02891.21.bam 
 
 HG02891.21.bam.bai: HG02891.21.bam 
 	samtools index HG02891.21.bam 

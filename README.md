@@ -124,7 +124,7 @@ i) If the sample is not too divergent from the reference used you can simply use
  a) Find the ideal length for the -length parameter. Try increasing until substition rates level off.
  b) Keep increasing  -minq from 0 until the damage levels off.
  c) If you have a high rate of substitutions outside of expected ones (e.g. C->T, G->A) consider using the second option (see ii) )
- d) Have a look at the command line in the test data directory.
+ d) Have a look at the bam2prof command line used for the Loschbour sample in testData/Makefile, it is a reasonable starting point.
 
 ii) Use the script to estimate damage by masking polymorphic positions, this is especially important if the divergence between the reference genome and sample is great and there are a lot of polymorphic positions:
 
@@ -211,6 +211,10 @@ FAQ
 ### bam2prof stops with "ReconsReferenceHTSLIB: Cannot get MD tag from read0", why?
 
 - bam2prof reconstructs the reference sequence for each read from its MD tag, so the BAM has to carry one. Not every aligner writes it. Add it with "samtools calmd -b [your bam] [reference].fa > [new bam]", index the result and use that.
+
+### bam2prof prints only "-nan" values, why?
+
+- Almost always because your reads are paired-end. bam2prof ignores paired reads unless it is given "-paired", so on a fully paired BAM nothing is counted and every rate comes out as "-nan" with no error. Before adding "-paired", though, read point 3) of "Preparing the BAM file" above: ROHan itself discards paired-end reads whenever "--deam5p"/"--deam3p" are used, so a profile computed that way cannot be applied to that same BAM. For ancient and historical samples the answer is to collapse overlapping read pairs and map them as single-end, after which neither program has to skip anything. Other things that produce "-nan" are a BAM with no MD tag (see above) and filters so strict that no base survives, so check "-minq" and "-minl" too.
 
 ### The coverage step prints "Results bp=0 sites=0 lambda=...", is something wrong?
 
