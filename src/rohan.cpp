@@ -5306,6 +5306,10 @@ int main (int argc, char *argv[]) {
 	"\t\t"+""  +"" +"     "      +"\t\t\t"    + "          "+"\t\t"+"windows in the bed file is used as the window size"+"\n"+
 
 	"\t\t"+""  +"" +"--map"      +"\t\t\t"    + "[bed file]"+"\t\t"+"Use a mappability filter to filter on a per site basis  (default: none)"+"\n"+
+	//a bedgraph has a row for every interval, unmappable ones included, so read as a BED it
+	//selects the whole genome and the filter silently does nothing. Say so where users look
+	"\t\t"+""  +"" +"     "      +"\t\t\t"    + "          "+"\t\t"+"only the first 3 columns are read, a scored file such as a genmap bedgraph must be"+"\n"+
+	"\t\t"+""  +"" +"     "      +"\t\t\t"    + "          "+"\t\t"+"thresholded into a plain BED first, otherwise every interval in it is kept"+"\n"+
    ///"\t\t"+""  +"" +"--first"      +"\t\t\t"    + ""+"\t\t"+"Do not shuffle the windows for coverage computations (default: "+booleanAsString(!shuffleWindCoverage)+")"+"\n"+	      
 	"\t\t"+""  +"" +"--tstv"     +"\t\t\t"    + "[tstv]"  +"\t\t\t"+"Ratio of transitions to transversions  (default: "+stringify(TStoTVratio)+")"+"\n"+
 	"\t\t"+""  +"" +"--tvonly"     +"\t\t\t"    + ""  +"\t\t"+"Only consider transversions  (default: "+booleanAsString(tvonly)+")"+"\n"+

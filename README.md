@@ -242,6 +242,16 @@ It is possible that you have genuine ROH but if you have a slight overestimate o
 
 - By default, ROHan generates windows of "--size"bp along autosomes, you can override this and use the regions in a bed file. With either option, you can specify individual sites to consider using --map, this is recommended for ancient samples with short fragment size and with some damage.
 
+### I passed a mappability file to --map but it changed nothing, why?
+
+- Check that you gave it a BED file and not a bedgraph or any other scored format. ROHan reads only the first three columns of the file, the chromosome, the start and the end; every column after those is ignored, including a score. That matters because a bedgraph, such as the per site output of genmap, has one row for **every** interval, the unmappable ones included, so ROHan reads it as "keep the whole genome" and the filter does nothing at all. It will not warn you: the file parses perfectly well, it simply selects everything. Threshold it into a plain BED of the intervals you want to keep first. For genmap, whose score is 1 divided by the number of matches, so that 1 means uniquely mappable:
+
+```bash
+awk '$4 >= 1' genmap.bedgraph | cut -f1-3 > mappable.bed
+```
+
+and then pass "mappable.bed" to --map. The same applies to --bed.
+
 
 ### I get slightly different results every time I run on the same data, why?
 

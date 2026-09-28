@@ -85,7 +85,10 @@ ERROR: Cannot find file .../bin/../preComputated/coverageprior/correctionCov_8.b
 
 Four directories have to travel with it, laid out so that `../` from `bin/` finds them:
 
+Run this from the top of the repository:
+
 ```bash
+REPO=$(git rev-parse --show-toplevel)
 V=v1.0.5
 D=rohan-$V-linux-x86_64
 rm -rf /tmp/$D && mkdir -p /tmp/$D/bin
@@ -105,18 +108,27 @@ only the copy going into the tarball.
 Do not skip this. It is the only check that the packaged layout actually resolves, and it is
 how the missing `preComputated/` above was caught:
 
+Keeping `$REPO`, `$V` and `$D` from the previous step:
+
 ```bash
 rm -rf /tmp/unpack && mkdir /tmp/unpack && tar xzf /tmp/$D.tar.gz -C /tmp/unpack
 cd /tmp/unpack
+./$D/bin/rohan --help 2>&1 | grep -E -A1 -- "--deam5p|--err|--base" | grep default
 ./$D/bin/rohan --size 500000 --chains 2000 --seed 42 \
-   --auto  <repo>/testData/simulated.autosomes \
+   --auto "$REPO/testData/simulated.autosomes" \
    -o /tmp/unpack/t \
-   <repo>/testData/simulated.fa <repo>/testData/simulated.bam
+   "$REPO/testData/simulated.fa" "$REPO/testData/simulated.bam"
+cd "$REPO"
 ```
 
-It must run to completion and write `/tmp/unpack/t.summary.txt`. Run `<repo>/bin/rohan --help`
-from the unpacked copy too and confirm the `--deam5p`, `--err` and `--base` defaults point
-inside the unpacked directory rather than at your build tree.
+The `--help` line must show the `--deam5p`, `--err` and `--base` defaults pointing inside
+`/tmp/unpack/$D/`, not at your build tree. The run must finish and write
+`/tmp/unpack/t.summary.txt`. It needs `testData/simulated.*`, so run `make -C testData/ test`
+first if you have not already (step 4 does it).
+
+The run is single-threaded as written and takes roughly ten minutes on six windows; add
+`-t 4` if you would rather not wait. It is checking that the packaged layout resolves, not
+the numbers, so either is fine.
 
 ## 8. Tag, push the tag, publish
 
@@ -141,7 +153,7 @@ done through the GitHub web interface if `gh` is not available.
 To confirm afterwards that a given fix is really in a release:
 
 ```bash
-git tag --contains <commit>
+git tag --contains b515df8      # substitute the commit you care about
 ```
 
 Empty output means the commit is on master but in no tagged release — worth checking before
