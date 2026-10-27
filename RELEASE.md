@@ -141,8 +141,10 @@ The `--help` line must show the `--deam5p`, `--err` and `--base` defaults pointi
 `/tmp/unpack/t.summary.txt`. It needs `testData/simulated.*`, so run `make -C testData/ test`
 first if you have not already (step 4 does it).
 
-The run is single-threaded as written and takes roughly ten minutes on six windows; add
-`-t 4` if you would rather not wait. It is checking that the packaged layout resolves, not
+The run takes a few minutes, and its progress bar is drawn with carriage returns, so the
+terminal looks frozen while it works — leave it alone rather than assuming it has died. It is
+single-threaded as written, which is roughly ten minutes on six windows; add `-t 4` to cut
+that down. It is checking that the packaged layout resolves, not
 the numbers, so either is fine.
 
 ## 8. Tag, push the tag, publish
