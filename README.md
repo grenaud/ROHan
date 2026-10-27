@@ -60,7 +60,7 @@ For MacOS, if you have Homebrew (https://brew.sh/) installed:
 3) As the makefile uses "git clone" to download subpackages, please make sure that the computer on which you are installing ROHan has access to the internet. Once done, simply type:
    
 ```bash
-cd ROHan
+cd rohan
 make
 ```
 

@@ -11,14 +11,31 @@ file`. The ordinary `make` produces a dynamic binary, so the static link has to 
 deliberately before tagging. That is the step that is easy to forget and hard to notice
 afterwards.
 
-The worked example below is v1.0.5; substitute the version you are releasing.
+Set the version once, in the shell you are going to run all of this in, and the commands
+below can be pasted as they are:
+
+```bash
+export V=v1.0.7
+export D=rohan-$V-linux-x86_64
+```
 
 ## 1. Start from a clean, pushed master
 
 ```bash
 git checkout master
 git pull
+git fetch --tags                            # do not skip this
+git tag --sort=-v:refname | head -3         # what is actually released
 git status --porcelain | grep -v '^??'      # must print nothing
+```
+
+`git pull` does not reliably bring tags across, and a stale local tag list is how you end up
+believing a fix is unreleased when it shipped weeks ago, or picking a version number that is
+already taken. Confirm against the remote if there is any doubt:
+
+```bash
+git ls-remote --tags origin | grep -E 'v[0-9]'
+gh release list
 ```
 
 ## 2. Build everything
@@ -66,7 +83,7 @@ replacing the static binary with a dynamic one — if any source was touched aft
 ```bash
 file bin/rohan                              # statically linked, one last time
 git add bin/rohan
-git commit -m "static build for v1.0.5"
+git commit -m "static build for $V"
 git push
 ```
 
@@ -89,8 +106,6 @@ Run this from the top of the repository:
 
 ```bash
 REPO=$(git rev-parse --show-toplevel)
-V=v1.0.5
-D=rohan-$V-linux-x86_64
 rm -rf /tmp/$D && mkdir -p /tmp/$D/bin
 cp bin/rohan /tmp/$D/bin/
 strip /tmp/$D/bin/rohan
@@ -133,8 +148,8 @@ the numbers, so either is fine.
 ## 8. Tag, push the tag, publish
 
 ```bash
-git tag -a v1.0.5 -m "ROHan v1.0.5"
-git push origin v1.0.5
+git tag -a "$V" -m "ROHan $V"
+git push origin "$V"
 ```
 
 A tag is not pushed by a plain `git push`; it needs the second command.
@@ -142,9 +157,9 @@ A tag is not pushed by a plain `git push`; it needs the second command.
 Then create the release and attach the tarball:
 
 ```bash
-gh release create v1.0.5 /tmp/rohan-v1.0.5-linux-x86_64.tar.gz \
-   --title "ROHan v1.0.5" \
-   --notes-file release_notes_v1.0.5.md
+gh release create "$V" /tmp/$D.tar.gz \
+   --title "ROHan $V" \
+   --notes-file "release_notes_$V.md"
 ```
 
 Paste the sha256 from step 6 into the notes so people can verify the download. The same can be
@@ -153,6 +168,7 @@ done through the GitHub web interface if `gh` is not available.
 To confirm afterwards that a given fix is really in a release:
 
 ```bash
+git fetch --tags
 git tag --contains b515df8      # substitute the commit you care about
 ```
 

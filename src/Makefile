@@ -6,9 +6,18 @@ LIBGAB   = ../lib/libgab/
 #object depends on. Those .d files are pulled in at the bottom of this makefile so that
 #editing a header rebuilds whatever includes it, instead of silently leaving a stale .o
 CXXFLAGS = -Wall -lm -O3 -lz -I../lib/libgab/ -I../lib/libgab//gzstream/ -I../lib/samtools/ -I../lib/htslib/  -I../lib/libharu/include/   -MMD -MP -c
-#htslib is built with --disable-libcurl (see the ../lib/htslib/libhts.a rule) so
-#no -lcurl here; a full static link cannot resolve libcurl.a's dependency chain
-LDFLAGS  = -lgsl -lgslcblas -llzma -lbz2 -lz  -lpthread
+#htslib's configure auto-detects optional libraries and records the exact set its static
+#library needs in htslib_static.mk. Ask it rather than guessing: libdeflate in particular is
+#picked up whenever libdeflate-dev happens to be installed, and libhts.a then references
+#libdeflate_crc32 and friends. A hardcoded list has no -ldeflate in it, so the link fails
+#with "undefined reference to libdeflate_crc32" on exactly those machines and nowhere else.
+#$(shell) inside a recursively expanded variable runs when the link recipe is expanded, which
+#is after htslib has been built, so this works on a fresh clone too. The fallback is only for
+#a tree where htslib has not been configured yet.
+#htslib is built with --disable-libcurl (see the ../lib/htslib/libhts.a rule) so no -lcurl.
+HTSLIB_STATIC_LIBS = $(shell sed -n 's/^HTSLIB_static_LIBS[ 	]*=[ 	]*//p' ../lib/htslib/htslib_static.mk 2>/dev/null)
+HTSLIB_STATIC_LDFLAGS = $(shell sed -n 's/^HTSLIB_static_LDFLAGS[ 	]*=[ 	]*//p' ../lib/htslib/htslib_static.mk 2>/dev/null)
+LDFLAGS  = -lgsl -lgslcblas $(if $(HTSLIB_STATIC_LIBS),$(HTSLIB_STATIC_LIBS),-llzma -lbz2 -lz -lpthread) $(HTSLIB_STATIC_LDFLAGS)
 LDLIBS   = ../lib/samtools/bedidx.o ../lib/htslib/libhts.a ../lib/samtools/libst.a ../lib/samtools/libst.a
 
 .PHONY: all static clean
