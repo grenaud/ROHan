@@ -11,8 +11,15 @@ bam2prof/bam2prof.cpp:
 	mv -v bam2prof/*/src/*  bam2prof/
 
 
-bam2prof/bam2prof: bam2prof/bam2prof.cpp
-	make -C bam2prof/
+#bam2prof's own Makefile hardcodes its link libraries, with no -ldeflate, but it links against
+#the htslib that src/Makefile configured. Where libdeflate-dev is installed that htslib needs
+#-ldeflate, so ask htslib_static.mk for the real list (same as src/Makefile) and override
+#LDFLAGS. bin/rohan is a prerequisite so htslib is built and configured before this is read.
+HTSLIB_STATIC_LIBS = $(shell sed -n 's/^HTSLIB_static_LIBS[ 	]*=[ 	]*//p' lib/htslib/htslib_static.mk 2>/dev/null)
+HTSLIB_STATIC_LDFLAGS = $(shell sed -n 's/^HTSLIB_static_LDFLAGS[ 	]*=[ 	]*//p' lib/htslib/htslib_static.mk 2>/dev/null)
+
+bam2prof/bam2prof: bam2prof/bam2prof.cpp bin/rohan
+	make -C bam2prof/ LDFLAGS="-lgsl -lgslcblas $(if $(HTSLIB_STATIC_LIBS),$(HTSLIB_STATIC_LIBS),-llzma -lbz2 -lz -lpthread) $(HTSLIB_STATIC_LDFLAGS)"
 	rm -rfv bam2prof/grenaud*/
 	rm -f bam2prof.zip
 
