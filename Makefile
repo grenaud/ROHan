@@ -2,13 +2,15 @@ all:	bin/rohan bam2prof/bam2prof
 	@echo "Done"
 
 
+#git clone instead of wget on the zipball: the zipball URL goes through GitHub's archive
+#service, which returned 502/504 for minutes at a time and wget's default retries made the
+#build hang ~5 minutes before failing. Retry a few times, then fail clearly.
 bam2prof/bam2prof.cpp:
-	rm -rfv bam2prof/
+	rm -rfv bam2prof/ bam2prof.tmp/
+	for i in 1 2 3; do git clone --depth 1 -b master https://github.com/grenaud/bam2prof.git bam2prof.tmp && break; rm -rf bam2prof.tmp; sleep 15; done; test -d bam2prof.tmp
 	mkdir -p bam2prof/
-	rm -f bam2prof.zip
-	wget --no-check-certificate -O bam2prof.zip https://github.com/grenaud/bam2prof/zipball/master
-	unzip bam2prof.zip -d bam2prof
-	mv -v bam2prof/*/src/*  bam2prof/
+	mv -v bam2prof.tmp/src/*  bam2prof/
+	rm -rf bam2prof.tmp/
 
 
 #bam2prof's own Makefile hardcodes its link libraries, with no -ldeflate, but it links against
