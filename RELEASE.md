@@ -15,7 +15,7 @@ Set the version once, in the shell you are going to run all of this in, and the 
 below can be pasted as they are:
 
 ```bash
-export V=v1.0.7
+export V=v1.0.8
 export D=rohan-$V-linux-x86_64
 ```
 
